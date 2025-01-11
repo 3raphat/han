@@ -1,20 +1,57 @@
 import { LitElement, html, css } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
+import { customElement, property, state } from 'lit/decorators.js'
 import { sanitizeId } from './lib/utils'
+
+interface PromptPayIdItem {
+  id: string
+  label: string
+  selected: boolean
+}
 
 @customElement('promptpay-setup')
 export class PromptPaySetup extends LitElement {
-  @property({ type: String })
-  promptPayId = sanitizeId(window.localStorage.getItem('promptPayId') || '')
+  @property({ type: Array })
+  promptPayIds: PromptPayIdItem[] = []
 
   @property({ type: String })
-  inputValue = this.promptPayId
+  selectedId = ''
+
+  @state()
+  private inputValue = ''
+
+  @state()
+  private labelValue = ''
 
   @property({ type: Boolean })
-  collapsed = !!this.promptPayId
+  collapsed = false
+
+  constructor() {
+    super()
+    const storedIds = window.localStorage.getItem('promptPayIds')
+    this.promptPayIds = storedIds ? JSON.parse(storedIds) : []
+    if (
+      this.promptPayIds.length > 0 &&
+      !this.promptPayIds.some((item) => item.selected)
+    ) {
+      this.promptPayIds[0].selected = true
+      window.localStorage.setItem(
+        'promptPayIds',
+        JSON.stringify(this.promptPayIds)
+      )
+    }
+    this.selectedId = this.promptPayIds.find((item) => item.selected)?.id || ''
+    this.collapsed = this.promptPayIds.length > 0
+  }
 
   toggle() {
     this.collapsed = !this.collapsed
+    this.dispatchEvent(
+      new CustomEvent('setup-collapse', {
+        detail: { collapsed: this.collapsed },
+        bubbles: true,
+        composed: true,
+      })
+    )
   }
 
   render() {
@@ -32,7 +69,6 @@ export class PromptPaySetup extends LitElement {
               <input
                 id="promptpay-input"
                 type="text"
-                pattern="[0-9]*"
                 inputmode="numeric"
                 placeholder="Phone number or National ID"
                 aria-label="PromptPay ID"
@@ -54,18 +90,75 @@ export class PromptPaySetup extends LitElement {
               Enter your phone number or national ID without spaces or dashes
             </p>
           </div>
+          <div class="input-group">
+            <label for="label-input">Label (optional)</label>
+            <div class="input-wrapper">
+              <input
+                id="label-input"
+                type="text"
+                placeholder="e.g. Personal, Business"
+                aria-label="Label"
+                @input=${this._onLabelInput}
+                .value=${this.labelValue}
+              />
+              ${this.labelValue
+                ? html`<button
+                    type="button"
+                    class="clear-button"
+                    @click=${this._clearLabel}
+                    aria-label="Clear label"
+                  >
+                    ✕
+                  </button>`
+                : ''}
+            </div>
+          </div>
           <button
             type="submit"
             ?disabled=${!this.inputValue}
             class="submit-button"
           >
-            Save PromptPay ID
+            Add PromptPay ID
           </button>
         </form>
-        ${this.promptPayId
-          ? html`<div class="current-id">
-              <label>Current PromptPay ID:</label>
-              <span class="value">${this.promptPayId}</span>
+        ${this.promptPayIds.length > 0
+          ? html`<div class="saved-ids">
+              <label>Saved PromptPay IDs:</label>
+              <div class="id-list">
+                ${this.promptPayIds.map(
+                  (item, index) => html`
+                    <div
+                      class="id-item ${item.id === this.selectedId
+                        ? 'selected'
+                        : ''}"
+                    >
+                      <div class="id-details">
+                        <span class="value">${item.id}</span>
+                        ${item.label
+                          ? html`<span class="label">${item.label}</span>`
+                          : ''}
+                      </div>
+                      <div class="id-actions">
+                        <button
+                          type="button"
+                          class="action-button select-button"
+                          @click=${() => this._selectId(item.id)}
+                          ?disabled=${item.id === this.selectedId}
+                        >
+                          ${item.id === this.selectedId ? 'Selected' : 'Select'}
+                        </button>
+                        <button
+                          type="button"
+                          class="action-button delete-button"
+                          @click=${() => this._deleteId(index)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  `
+                )}
+              </div>
             </div>`
           : ''}
       </div>
@@ -75,41 +168,100 @@ export class PromptPaySetup extends LitElement {
   private _onInput(event: Event) {
     const input = event.target as HTMLInputElement
     this.inputValue = sanitizeId(input.value)
-    this.dispatchEvent(
-      new CustomEvent('promptpay-input', {
-        detail: this.inputValue,
-        bubbles: true,
-        composed: true,
-      })
-    )
+  }
+
+  private _onLabelInput(event: Event) {
+    const input = event.target as HTMLInputElement
+    this.labelValue = input.value
   }
 
   private _onSubmit(event: Event) {
     event.preventDefault()
     if (!this.inputValue) return
 
-    window.localStorage.setItem('promptPayId', this.inputValue)
-    this.promptPayId = this.inputValue
+    if (this.promptPayIds.some((item) => item.id === this.inputValue)) {
+      window.alert('This PromptPay ID already exists')
+      return
+    }
+
+    const newId = {
+      id: this.inputValue,
+      label: this.labelValue.trim(),
+      selected: this.promptPayIds.length === 0,
+    }
+
+    this.promptPayIds = [...this.promptPayIds, newId]
+    window.localStorage.setItem(
+      'promptPayIds',
+      JSON.stringify(this.promptPayIds)
+    )
+
+    this._selectId(this.inputValue)
+
+    this.inputValue = ''
+    this.labelValue = ''
     this.collapsed = true
+  }
+
+  private _selectId(id: string) {
+    this.promptPayIds = this.promptPayIds.map((item) => ({
+      ...item,
+      selected: item.id === id,
+    }))
+    window.localStorage.setItem(
+      'promptPayIds',
+      JSON.stringify(this.promptPayIds)
+    )
+    this.selectedId = id
+
+    const selectedItem = this.promptPayIds.find((item) => item.id === id)
 
     this.dispatchEvent(
       new CustomEvent('promptpay-save', {
-        detail: this.inputValue,
+        detail: {
+          id: id,
+          label: selectedItem?.label || '',
+        },
         bubbles: true,
         composed: true,
       })
     )
+
+    this.collapsed = true
+  }
+
+  private _deleteId(index: number) {
+    const wasSelected = this.promptPayIds[index].selected
+    this.promptPayIds = this.promptPayIds.filter((_, i) => i !== index)
+
+    if (wasSelected && this.promptPayIds.length > 0) {
+      this.promptPayIds[0].selected = true
+      this._selectId(this.promptPayIds[0].id)
+    }
+
+    window.localStorage.setItem(
+      'promptPayIds',
+      JSON.stringify(this.promptPayIds)
+    )
+
+    if (this.promptPayIds.length === 0) {
+      this.selectedId = ''
+      this.dispatchEvent(
+        new CustomEvent('promptpay-save', {
+          detail: { id: '', label: '' },
+          bubbles: true,
+          composed: true,
+        })
+      )
+    }
   }
 
   private _clearInput() {
     this.inputValue = ''
-    this.dispatchEvent(
-      new CustomEvent('promptpay-input', {
-        detail: '',
-        bubbles: true,
-        composed: true,
-      })
-    )
+  }
+
+  private _clearLabel() {
+    this.labelValue = ''
   }
 
   static styles = css`
@@ -223,18 +375,89 @@ export class PromptPaySetup extends LitElement {
       color: #737373;
     }
 
-    .current-id {
+    .saved-ids {
       display: flex;
       flex-direction: column;
-      gap: 0.125rem;
+      gap: 0.5rem;
+    }
+
+    .id-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .id-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       padding: 0.75rem;
       background: #262626;
       border: 1px solid #404040;
       border-radius: 0.25rem;
+      gap: 1rem;
     }
 
-    .current-id .value {
+    .id-item.selected {
+      border-color: #737373;
+    }
+
+    .id-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.125rem;
+      min-width: 0;
+    }
+
+    .id-details .value {
       color: #f5f5f5;
+      font-size: 0.875rem;
+    }
+
+    .id-details .label {
+      color: #a3a3a3;
+      font-size: 0.75rem;
+    }
+
+    .id-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .action-button {
+      padding: 0.25rem 0.5rem;
+      border: 1px solid #404040;
+      border-radius: 0.25rem;
+      background: #262626;
+      color: #f5f5f5;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .action-button:hover:not(:disabled) {
+      border-color: #737373;
+    }
+
+    .action-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .select-button {
+      min-width: 4rem;
+    }
+
+    .delete-button {
+      color: #ef4444;
+      border-color: #ef4444;
+    }
+
+    .delete-button:hover {
+      background: #ef4444;
+      color: #f5f5f5;
+      border-color: #ef4444 !important;
     }
   `
 }

@@ -1,5 +1,5 @@
 import { css, html, LitElement } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
+import { customElement, property, state } from 'lit/decorators.js'
 import ppqr from 'promptpay-qr'
 import qrcode from 'qrcode'
 import { sanitizeId } from './lib/utils'
@@ -12,10 +12,19 @@ interface AmountChangeEvent extends CustomEvent {
   }
 }
 
+interface PromptPayIdItem {
+  id: string
+  label: string
+  selected: boolean
+}
+
 @customElement('qr-render')
 export class QrRender extends LitElement {
   @property({ type: String })
-  promptPayId = sanitizeId(window.localStorage.getItem('promptPayId') || '')
+  promptPayId = ''
+
+  @property({ type: String })
+  promptPayLabel = ''
 
   @property({ type: Number })
   amount = 0
@@ -25,6 +34,22 @@ export class QrRender extends LitElement {
 
   @property({ type: Number })
   noOfPeople = 1
+
+  @state()
+  private setupCollapsed = true
+
+  constructor() {
+    super()
+    const storedIds = window.localStorage.getItem('promptPayIds')
+    if (storedIds) {
+      const promptPayIds: PromptPayIdItem[] = JSON.parse(storedIds)
+      const selectedItem = promptPayIds.find((item) => item.selected)
+      if (selectedItem) {
+        this.promptPayId = sanitizeId(selectedItem.id)
+        this.promptPayLabel = selectedItem.label || ''
+      }
+    }
+  }
 
   firstUpdated() {
     this._renderQrCode()
@@ -36,8 +61,13 @@ export class QrRender extends LitElement {
     }) as EventListener)
 
     window.addEventListener('promptpay-save', ((e: CustomEvent) => {
-      this.promptPayId = e.detail
+      this.promptPayId = sanitizeId(e.detail.id)
+      this.promptPayLabel = e.detail.label
       this._renderQrCode()
+    }) as EventListener)
+
+    window.addEventListener('setup-collapse', ((e: CustomEvent) => {
+      this.setupCollapsed = e.detail.collapsed
     }) as EventListener)
   }
 
@@ -96,9 +126,14 @@ export class QrRender extends LitElement {
         </div>
         <div class="promptpay-id">
           <span class="label">PromptPay ID:</span>
-          <span class="id">${this.promptPayId}</span>
+          <span class="id">
+            ${this.promptPayId}${' '}
+            ${this.promptPayLabel
+              ? html`<span class="id-label">(${this.promptPayLabel})</span>`
+              : ''}
+          </span>
           <button type="button" class="edit-button" @click=${this._showSetup}>
-            edit
+            ${this.setupCollapsed ? 'edit' : 'close'}
           </button>
         </div>
       </div>
@@ -108,6 +143,7 @@ export class QrRender extends LitElement {
   private _showSetup() {
     const setup = document.querySelector('promptpay-setup')
     if (setup) {
+      this.setupCollapsed = !this.setupCollapsed
       setup.toggle()
     }
   }
@@ -236,6 +272,10 @@ export class QrRender extends LitElement {
 
     .promptpay-id .id {
       color: #f5f5f5;
+    }
+
+    .promptpay-id .id-label {
+      color: #a3a3a3;
     }
   `
 }
