@@ -2,7 +2,7 @@ import { css, html, LitElement } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import ppqr from 'promptpay-qr'
 import qrcode from 'qrcode'
-import { sanitizeId } from './lib/utils'
+import { sanitizeId, formatCurrency } from './lib/utils'
 
 interface AmountChangeEvent extends CustomEvent {
   detail: {
@@ -88,7 +88,8 @@ export class QrRender extends LitElement {
       this.noOfPeople > 1 && this.amount > 0
         ? html`<div class="split-info">
             <div class="total-amount">
-              <span class="label">Total:</span> ฿${this.totalAmount.toFixed(2)}
+              <span class="label">Total:</span>
+              <span class="amount">${formatCurrency(this.totalAmount)}</span>
             </div>
             <div class="split-details">
               <span class="people">
@@ -111,11 +112,15 @@ export class QrRender extends LitElement {
                 ${this.noOfPeople} people</span
               >
               <span class="divider">•</span>
-              <span class="per-person">฿${this.amount.toFixed(2)} each</span>
+              <span class="per-person">
+                <span class="amount">${formatCurrency(this.amount)}</span> each
+              </span>
             </div>
           </div>`
         : html`<div class="split-info single">
-            <div class="total-amount">฿${this.amount.toFixed(2)}</div>
+            <div class="total-amount amount">
+              ${formatCurrency(this.amount)}
+            </div>
           </div>`
 
     return html`
@@ -232,6 +237,10 @@ export class QrRender extends LitElement {
     .per-person {
       font-weight: 400;
       color: #f5f5f5;
+    }
+
+    .amount {
+      font-variant-numeric: tabular-nums;
     }
 
     .qr-wrapper {
