@@ -4,33 +4,31 @@ import { customElement, property } from 'lit/decorators.js'
 @customElement('input-group')
 export class InputGroup extends LitElement {
   @property({ type: Number })
-  amount: number | undefined = undefined
+  amount = 0
 
   @property({ type: Number })
-  noOfPeople: number | undefined = undefined
+  noOfPeople = 1
 
   private handleInput(e: Event) {
     const input = e.target as HTMLInputElement
     const id = input.id
 
     if (id === 'amount-input') {
-      this.amount = input.value ? parseFloat(input.value) : undefined
+      this.amount = input.value.length === 0 ? 0 : parseFloat(input.value)
     } else if (id === 'no-of-people-input') {
-      this.noOfPeople = input.value
-        ? Math.max(1, parseInt(input.value))
-        : undefined
+      this.noOfPeople =
+        input.value.length === 0 ? 1 : Math.max(1, parseInt(input.value))
     }
 
-    if (this.amount !== undefined) {
-      const effectiveNoOfPeople = this.noOfPeople ?? 1
-      const splitAmount = this.amount / effectiveNoOfPeople
+    if (this.amount >= 0 && this.noOfPeople >= 1) {
+      const splitAmount = this.amount / this.noOfPeople
 
       this.dispatchEvent(
         new CustomEvent('amount-change', {
           detail: {
             amount: splitAmount,
             totalAmount: this.amount,
-            noOfPeople: effectiveNoOfPeople,
+            noOfPeople: this.noOfPeople,
           },
           bubbles: true,
           composed: true,
@@ -49,9 +47,9 @@ export class InputGroup extends LitElement {
             type="number"
             inputmode="decimal"
             step="0.01"
-            min="0"
+            min="1"
             placeholder="0.00"
-            .value=${this.amount ?? ''}
+            .value=${this.amount <= 0 ? '' : this.amount}
             @input=${this.handleInput}
           />
         </div>
@@ -63,7 +61,7 @@ export class InputGroup extends LitElement {
             min="1"
             step="1"
             placeholder="1"
-            .value=${this.noOfPeople ?? ''}
+            .value=${this.noOfPeople <= 1 ? '' : this.noOfPeople}
             @input=${this.handleInput}
           />
         </div>

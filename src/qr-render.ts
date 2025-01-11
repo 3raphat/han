@@ -55,7 +55,7 @@ export class QrRender extends LitElement {
     }
 
     const splitInfo =
-      this.noOfPeople > 1
+      this.noOfPeople > 1 && this.amount > 0
         ? html`<div class="split-info">
             <div class="total-amount">
               <span class="label">Total:</span> ฿${this.totalAmount.toFixed(2)}
