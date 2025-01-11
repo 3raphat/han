@@ -158,7 +158,9 @@ export class QrRender extends LitElement {
       return
     }
 
-    const payload = ppqr(this.promptPayId, { amount: this.amount })
+    const payload = ppqr(this.promptPayId, {
+      amount: Number(formatCurrency(this.amount).replace('฿', '')),
+    })
     const canvas = this.renderRoot.querySelector('#qr-canvas')
     if (canvas) {
       qrcode.toCanvas(
