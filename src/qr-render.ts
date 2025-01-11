@@ -34,6 +34,11 @@ export class QrRender extends LitElement {
       this.noOfPeople = e.detail.noOfPeople
       this._renderQrCode()
     }) as EventListener)
+
+    window.addEventListener('promptpay-save', ((e: CustomEvent) => {
+      this.promptPayId = e.detail
+      this._renderQrCode()
+    }) as EventListener)
   }
 
   updated() {

@@ -84,10 +84,21 @@ export class PromptPaySetup extends LitElement {
     )
   }
 
-  private _onSubmit() {
+  private _onSubmit(event: Event) {
+    event.preventDefault()
     if (!this.inputValue) return
 
     window.localStorage.setItem('promptPayId', this.inputValue)
+    this.promptPayId = this.inputValue
+    this.collapsed = true
+
+    this.dispatchEvent(
+      new CustomEvent('promptpay-save', {
+        detail: this.inputValue,
+        bubbles: true,
+        composed: true,
+      })
+    )
   }
 
   private _clearInput() {
