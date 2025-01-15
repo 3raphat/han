@@ -127,7 +127,7 @@ export class QrRender extends LitElement {
       <div class="qr-card">
         ${splitInfo}
         <div class="qr-wrapper">
-          <canvas id="qr-canvas" width="256" height="256"></canvas>
+          <canvas id="qr-canvas"></canvas>
         </div>
         <div class="promptpay-id">
           <span class="label">PromptPay ID:</span>
@@ -246,16 +246,13 @@ export class QrRender extends LitElement {
     }
 
     .qr-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
       background: #ffffff;
-      padding: 0.75rem;
+      padding: 0.25rem;
       border-radius: 0.5rem;
       border: 1px solid #404040;
-    }
-
-    canvas {
-      width: 100%;
-      height: auto;
-      aspect-ratio: 1 / 1;
     }
 
     .promptpay-id {
